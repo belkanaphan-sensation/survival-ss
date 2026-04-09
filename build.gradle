@@ -1,0 +1,158 @@
+plugins {
+	id 'java'
+	id 'org.springframework.boot' version '3.5.5'
+	id 'io.spring.dependency-management' version '1.1.7'
+	id 'org.liquibase.gradle' version '2.2.0'
+	id 'com.diffplug.spotless' version '6.25.0'
+}
+
+group = 'com.bn'
+version = '0.0.1-SNAPSHOT'
+
+ext {
+	set('springBootVersion', '3.5.5')
+	set('springStateMachineStarterVersion', '4.0.0')
+	set('lombokVersion', '1.18.36')
+	set('validationVersion', '3.1.0')
+	set('liquibaseVersion', '4.33.0')
+	set('openApiVersion', '2.7.0')
+	set('mapstructVersion', '1.6.3')
+	set('mockitoVersion', '5.14.0')
+	set('guavaVersion', '33.4.8-jre')
+	set('caffeineVersion', '3.2.3')
+	set('poiVersion', '5.4.1')
+}
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(21)
+	}
+}
+
+configurations {
+	compileOnly {
+		extendsFrom annotationProcessor
+	}
+	// конфигурация для mockito-agent
+	mockitoAgent
+}
+
+repositories {
+	mavenCentral()
+	maven { url = 'https://repo.spring.io/snapshot' }
+}
+
+dependencies {
+	//swagger
+	implementation "org.springdoc:springdoc-openapi-starter-webmvc-ui:$openApiVersion"
+
+	implementation "org.springframework.boot:spring-boot-starter:$springBootVersion"
+	implementation "org.springframework.boot:spring-boot-starter-data-jpa:$springBootVersion"
+	implementation "org.springframework.boot:spring-boot-starter-web:$springBootVersion"
+	implementation "org.springframework.boot:spring-boot-starter-security:$springBootVersion"
+	implementation "org.springframework.boot:spring-boot-starter-aop:$springBootVersion"
+	implementation "org.springframework.statemachine:spring-statemachine-starter:$springStateMachineStarterVersion"
+	implementation "org.springframework.boot:spring-boot-starter-cache:$springBootVersion"
+	implementation "jakarta.validation:jakarta.validation-api:$validationVersion"
+
+	compileOnly "org.projectlombok:lombok:$lombokVersion"
+	annotationProcessor "org.projectlombok:lombok:$lombokVersion"
+
+	implementation 'org.postgresql:postgresql'
+	implementation 'org.liquibase:liquibase-core'
+
+	implementation "org.mapstruct:mapstruct:$mapstructVersion"
+	annotationProcessor "org.mapstruct:mapstruct-processor:$mapstructVersion"
+
+	implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+	implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
+	implementation "com.google.guava:guava:$guavaVersion"
+	implementation "com.github.ben-manes.caffeine:caffeine:$caffeineVersion"
+	implementation "org.apache.poi:poi-ooxml:$poiVersion"
+
+	testImplementation "org.springframework.boot:spring-boot-starter-test:$springBootVersion"
+	testImplementation 'org.testcontainers:junit-jupiter'
+	testImplementation 'org.testcontainers:postgresql'
+	testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+	// mockito
+	testImplementation "org.mockito:mockito-core:$mockitoVersion"
+	mockitoAgent("org.mockito:mockito-core:$mockitoVersion") {
+		transitive = false
+	}
+
+//	developmentOnly 'org.springframework.boot:spring-boot-docker-compose'
+}
+
+dependencyManagement {
+	imports {
+		mavenBom "org.springframework.boot:spring-boot-dependencies:$springBootVersion"
+	}
+}
+
+liquibase {
+	activities {
+		register("main") {
+			changeLogFile = 'src/main/resources/db/changelog/db.changelog-master.yaml'
+			url = 'jdbc:postgresql://localhost:9432/survival'
+			username = 'postgres'
+			password = 'postgres'
+			defaultSchemaName = 'survival'
+		}
+	}
+	runList = ['main']
+}
+
+//tasks.named('test') {
+//	useJUnitPlatform()
+//	// подключение mockito agent
+//	jvmArgs += "-javaagent:${configurations.mockitoAgent.asPath}"
+//
+//	// Настройки для Testcontainers
+//	systemProperty "testcontainers.reuse.enable", "true"
+//	systemProperty "testcontainers.checks.disable", "true"
+//
+//	// Настройки для лучшей производительности тестов
+//	maxParallelForks = 1 // Запускаем тесты последовательно для избежания конфликтов
+//	forkEvery = 1
+//}
+
+spotless {
+	java {
+		target 'src/**/*.java'
+		// Удаляет неиспользуемые импорты
+		removeUnusedImports()
+		// Задаём порядок импортов + пустые строки между группами
+		// Мне больше нравится поручать это форматирование идее, т.к. она форматирует на лету
+		// и не надо ничего дополнительно применять, потому я убрала
+//        importOrder(
+//                'static javax',
+//                'static org',
+//                'static com',
+//                'static',
+//
+//                'java',
+//                'javax',
+//                'org',
+//                'com',
+//                ''
+//        )
+
+		// Убирает trailing пробелы
+		trimTrailingWhitespace()
+		// Заменяет табы на пробелы
+		indentWithSpaces(4)
+		// Убирает пустые строки в конце файла
+		endWithNewline()
+	}
+
+	// Для других типов файлов (опционально)
+	format 'misc', {
+		target '**/*.gradle', '**/*.md', '**/.gitignore'
+		trimTrailingWhitespace()
+		indentWithSpaces(4)
+		endWithNewline()
+	}
+}
